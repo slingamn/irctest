@@ -16,7 +16,8 @@ class GircController(BaseClientController):
     def run(self, hostname, port, authentication):
         # Runs a client with the config given as arguments
         self.proc = subprocess.Popen(['girc_test', 'connect',
-            '--host', hostname, '--port', str(port)])
+            '--host', hostname, '--port', str(port),
+            '--quiet'])
 
 def get_irctest_controller_class():
     return GircController
