@@ -7,6 +7,7 @@ class GircController(BaseClientController):
         super().__init__()
         self.directory = None
         self.proc = None
+        self.supported_sasl_mechanisms = ['PLAIN']
 
     def kill(self):
         if self.proc:
