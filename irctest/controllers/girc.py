@@ -26,7 +26,7 @@ class GircController(BaseClientController):
     def run(self, hostname, port, auth):
         args = ['--host', hostname, '--port', str(port), '--quiet']
 
-        if auth:
+        if auth and auth.username and auth.password:
             args += ['--sasl-name', auth.username]
             args += ['--sasl-pass', auth.password]
             args += ['--sasl-fail-is-ok']
