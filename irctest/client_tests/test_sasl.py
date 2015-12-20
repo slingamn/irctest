@@ -108,6 +108,9 @@ class SaslTestCase(cases.BaseClientTestCase, cases.ClientNegociationHelper):
                 ecdsa_key=ECDSA_KEY,
                 )
         m = self.negotiateCapabilities(['sasl'], auth=auth)
+        if m.params == ['END']:
+            # ECDSA-NIST256P-CHALLENGE not supported
+            return True
         self.assertEqual(m, Message([], None, 'AUTHENTICATE', ['ECDSA-NIST256P-CHALLENGE']))
         self.sendLine('AUTHENTICATE +')
         m = self.getMessage()
