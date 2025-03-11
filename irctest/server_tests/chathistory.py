@@ -989,10 +989,8 @@ class ChathistoryTestCase(cases.BaseServerTestCase):
             f"Expected 2 targets due to limit, got {len(targets_results)}",
         )
 
-        # Targets should be sorted by time of latest message (most recent first)
-        # Since we added messages in order with sleep between them,
-        # c3 should be first, then ch2, etc.
-        expected_order = [c3, ch2, c2, ch1]
+        # Targets should be sorted by time of latest message (earliest first)
+        expected_order = [ch1, c2, ch2, c3]
         for i in range(len(targets_results)):
             self.assertEqual(
                 targets_results[i][0],
