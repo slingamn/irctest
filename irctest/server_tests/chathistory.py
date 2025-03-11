@@ -921,7 +921,7 @@ class ChathistoryTestCase(cases.BaseServerTestCase):
         # Get a timestamp before all messages
         before_all = "timestamp=2020-01-01T00:00:00.000Z"
         # Get a timestamp after all messages
-        after_all = "timestamp=2030-01-01T00:00:00.000Z"
+        after_all = "timestamp=2263-01-01T00:00:00.000Z"
 
         # Execute TARGETS command
         self.sendLine(1, f"CHATHISTORY TARGETS {before_all} {after_all} 100")
