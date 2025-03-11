@@ -968,6 +968,15 @@ class ChathistoryTestCase(cases.BaseServerTestCase):
 
             self.assertTrue(target_found, f"Target {target} not found in TARGETS results")
 
+        # Targets should be sorted by time of latest message (earliest first)
+        expected_order = [ch1, c2, ch2, c3]
+        for i in range(len(targets_results)):
+            self.assertEqual(
+                targets_results[i][0],
+                expected_order[i],
+                f"Expected target {expected_order[i]} at position {i}, got {targets_results[i][0]}",
+            )
+
         # Test with a limit parameter
         self.sendLine(1, f"CHATHISTORY TARGETS {before_all} {after_all} 2")
         batch_messages = self.getMessages(1)
@@ -990,7 +999,6 @@ class ChathistoryTestCase(cases.BaseServerTestCase):
         )
 
         # Targets should be sorted by time of latest message (earliest first)
-        expected_order = [ch1, c2, ch2, c3]
         for i in range(len(targets_results)):
             self.assertEqual(
                 targets_results[i][0],
