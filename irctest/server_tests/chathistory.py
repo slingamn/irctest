@@ -18,8 +18,6 @@ EVENT_PLAYBACK_CAP = "draft/event-playback"
 # Keep this in sync with validate_chathistory()
 SUBCOMMANDS = ["LATEST", "BEFORE", "AFTER", "BETWEEN", "AROUND"]
 
-MYSQL_PASSWORD = ""
-
 
 def skip_ngircd(f):
     @functools.wraps(f)
@@ -813,7 +811,6 @@ class ChathistoryTestCase(cases.BaseServerTestCase):
         relay = self.getMessage(2)
         validate_msg(relay)
 
-
     @pytest.mark.private_chathistory
     @skip_ngircd
     def testChathistoryTargets(self):
@@ -966,7 +963,9 @@ class ChathistoryTestCase(cases.BaseServerTestCase):
                         self.assertEqual(result_time, target_times[target])
                     break
 
-            self.assertTrue(target_found, f"Target {target} not found in TARGETS results")
+            self.assertTrue(
+                target_found, f"Target {target} not found in TARGETS results"
+            )
 
         # Targets should be sorted by time of latest message (earliest first)
         expected_order = [ch1, c2, ch2, c3]
