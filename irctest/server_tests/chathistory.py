@@ -813,6 +813,196 @@ class ChathistoryTestCase(cases.BaseServerTestCase):
         relay = self.getMessage(2)
         validate_msg(relay)
 
+@pytest.mark.private_chathistory
+@skip_ngircd
+def testChathistoryTargets(self):
+    """Tests the CHATHISTORY TARGETS command, which lists channels the user has visible 
+    history in and users with which the user has exchanged direct messages."""
+    c1 = random_name("foo")
+    c2 = random_name("bar")
+    c3 = random_name("baz")
+    
+    # Register users
+    self.controller.registerUser(self, c1, "sesame1")
+    self.controller.registerUser(self, c2, "sesame2")
+    self.controller.registerUser(self, c3, "sesame3")
+    
+    # Connect with all capabilities
+    self.connectClient(
+        c1,
+        capabilities=[
+            "message-tags",
+            "server-time",
+            "echo-message",
+            "batch",
+            "labeled-response",
+            "sasl",
+            CHATHISTORY_CAP,
+        ],
+        password="sesame1",
+        skip_if_cap_nak=True,
+    )
+    
+    self.connectClient(
+        c2,
+        capabilities=[
+            "message-tags",
+            "server-time",
+            "echo-message",
+            "batch",
+            "labeled-response",
+            "sasl",
+            CHATHISTORY_CAP,
+        ],
+        password="sesame2",
+    )
+    
+    self.connectClient(
+        c3,
+        capabilities=[
+            "message-tags",
+            "server-time",
+            "echo-message",
+            "batch",
+            "labeled-response",
+            "sasl",
+            CHATHISTORY_CAP,
+        ],
+        password="sesame3",
+    )
+    
+    # Clear any initial messages
+    self.getMessages(1)
+    self.getMessages(2)
+    self.getMessages(3)
+    
+    # Create a few channels for testing
+    ch1 = "#chan" + secrets.token_hex(8)
+    ch2 = "#chan" + secrets.token_hex(8)
+    
+    # Join channels and exchange messages
+    self.joinChannel(1, ch1)
+    self.joinChannel(2, ch1)
+    self.joinChannel(1, ch2)
+    self.joinChannel(3, ch2)
+    self.getMessages(1)
+    self.getMessages(2)
+    self.getMessages(3)
+    
+    target_times = {}  # Store target and their latest message times
+    
+    # Exchange messages between users and in channels
+    # First, exchange messages in ch1
+    self.sendLine(1, f"PRIVMSG {ch1} :Hello channel 1")
+    self.getMessages(1)
+    ch1_msg = self.getMessages(2)[0]
+    target_times[ch1] = ch1_msg.tags.get("time", "")
+    time.sleep(0.002)
+    
+    # Then, DM between c1 and c2
+    self.sendLine(1, f"PRIVMSG {c2} :Hello user 2")
+    self.getMessages(1)
+    c2_msg = self.getMessages(2)[0]
+    target_times[c2] = c2_msg.tags.get("time", "")
+    time.sleep(0.002)
+    
+    # Then, messages in ch2
+    self.sendLine(1, f"PRIVMSG {ch2} :Hello channel 2")
+    self.getMessages(1)
+    ch2_msg = self.getMessages(3)[0]
+    target_times[ch2] = ch2_msg.tags.get("time", "")
+    time.sleep(0.002)
+    
+    # Finally, DM between c1 and c3
+    self.sendLine(1, f"PRIVMSG {c3} :Hello user 3")
+    self.getMessages(1)
+    c3_msg = self.getMessages(3)[0]
+    target_times[c3] = c3_msg.tags.get("time", "")
+    
+    # Now test TARGETS command
+    # Get a timestamp before all messages
+    before_all = "timestamp=2020-01-01T00:00:00.000Z"
+    # Get a timestamp after all messages
+    after_all = "timestamp=2030-01-01T00:00:00.000Z"
+    
+    # Execute TARGETS command
+    self.sendLine(1, f"CHATHISTORY TARGETS {before_all} {after_all} 100")
+    
+    # Verify response
+    batch_messages = self.getMessages(1)
+    self.assertGreater(len(batch_messages), 0)
+    
+    # Validate batch format
+    batch_start = batch_messages[0]
+    batch_end = batch_messages[-1]
+    self.assertMessageMatch(
+        batch_start, command="BATCH", params=[StrRe(r"\+.*"), "draft/chathistory-targets"]
+    )
+    batch_tag = batch_start.params[0][1:]
+    self.assertMessageMatch(batch_end, command="BATCH", params=["-" + batch_tag])
+    
+    # Extract actual targets from the batch
+    targets_results = []
+    for msg in batch_messages[1:-1]:
+        if msg.command == "CHATHISTORY" and msg.params[0] == "TARGETS" and len(msg.params) >= 3:
+            targets_results.append((msg.params[1], msg.params[2]))
+    
+    # Check that each target we messaged is in the results
+    target_names = [ch1, ch2, c2, c3]
+    for target in target_names:
+        target_found = False
+        for result_target, result_time in targets_results:
+            if result_target == target:
+                target_found = True
+                # Additionally verify the timestamp is correct
+                if target in target_times:
+                    self.assertEqual(result_time, target_times[target])
+                break
+        
+        self.assertTrue(target_found, f"Target {target} not found in TARGETS results")
+    
+    # Test with a limit parameter
+    self.sendLine(1, f"CHATHISTORY TARGETS {before_all} {after_all} 2")
+    batch_messages = self.getMessages(1)
+    
+    # Extract targets again
+    targets_results = []
+    for msg in batch_messages[1:-1]:
+        if msg.command == "CHATHISTORY" and msg.params[0] == "TARGETS" and len(msg.params) >= 3:
+            targets_results.append((msg.params[1], msg.params[2]))
+    
+    # Should only get 2 targets due to limit
+    self.assertEqual(len(targets_results), 2, 
+                    f"Expected 2 targets due to limit, got {len(targets_results)}")
+    
+    # Targets should be sorted by time of latest message (most recent first)
+    # Since we added messages in order with sleep between them, 
+    # c3 should be first, then ch2, etc.
+    expected_order = [c3, ch2, c2, ch1]
+    for i in range(len(targets_results)):
+        self.assertEqual(targets_results[i][0], expected_order[i], 
+                        f"Expected target {expected_order[i]} at position {i}, got {targets_results[i][0]}")
+    
+    # Test with timestamp range that excludes some targets
+    # Get the timestamp from the first message in ch1
+    ch1_time = target_times[ch1]
+    # Send the command to get targets after this time
+    self.sendLine(1, f"CHATHISTORY TARGETS timestamp={ch1_time} {after_all} 100")
+    batch_messages = self.getMessages(1)
+    
+    # Extract targets
+    targets_results = []
+    for msg in batch_messages[1:-1]:
+        if msg.command == "CHATHISTORY" and msg.params[0] == "TARGETS" and len(msg.params) >= 3:
+            targets_results.append((msg.params[1], msg.params[2]))
+    
+    # Should only get targets that had messages after ch1_time
+    # That would be c2, ch2, and c3, but not ch1
+    self.assertEqual(len(targets_results), 3, 
+                    f"Expected 3 targets for timestamp range, got {len(targets_results)}")
+    
+    for target, _ in targets_results:
+        self.assertNotEqual(target, ch1, "Target ch1 should have been excluded by timestamp range")
 
 assert {f"_validate_chathistory_{cmd}" for cmd in SUBCOMMANDS} == {
     meth_name
