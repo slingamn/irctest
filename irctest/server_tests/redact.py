@@ -767,14 +767,18 @@ class RedactWithServicesTestCase(cases.BaseServerTestCase):
         bob_delivery = self.getMessage(bob)
 
         self.assertMessageMatch(
-            alice_echo, command="PRIVMSG", params=[bob_channel, "Hello from alice"]
+            alice_echo,
+            command="PRIVMSG",
+            params=[bob_channel, "Hello from alice"],
+            tags={"msgid": ANYSTR, **ANYDICT},
         )
+        alice_msgid = alice_echo.tags["msgid"]
         self.assertMessageMatch(
-            bob_delivery, command="PRIVMSG", params=[bob_channel, "Hello from alice"]
+            bob_delivery,
+            command="PRIVMSG",
+            params=[bob_channel, "Hello from alice"],
+            tags={"msgid": alice_msgid, **ANYDICT},
         )
-
-        alice_msgid = alice_echo.tags.get("msgid")
-        assert alice_msgid, "Server did not send a msgid tag"
 
         self.sendLine(alice, f"REDACT {bob_channel} {alice_msgid}")
         alice_redact = self.getMessage(alice)
