@@ -784,18 +784,13 @@ class RedactWithServicesTestCase(cases.BaseServerTestCase):
         alice_redact = self.getMessage(alice)
         bob_redact = self.getMessage(bob)
 
-        self.assertMessageMatch(
-            alice_redact,
-            command="REDACT",
-            params=[bob_channel, alice_msgid],
-            prefix=StrRe(f"{alice}!.*"),
-        )
-        self.assertMessageMatch(
-            bob_redact,
-            command="REDACT",
-            params=[bob_channel, alice_msgid],
-            prefix=StrRe(f"{alice}!.*"),
-        )
+        for msg in (alice_redact, bob_redact):
+            self.assertMessageMatch(
+                msg,
+                command="REDACT",
+                params=[bob_channel, alice_msgid],
+                prefix=StrRe(f"{alice}!.*"),
+            )
 
         # Bob sends a message in his own channel
         self.sendLine(bob, f"PRIVMSG {bob_channel} :Hello from bob")
