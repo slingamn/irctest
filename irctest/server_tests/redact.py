@@ -5,7 +5,7 @@
 
 from irctest import cases, runner
 from irctest.irc_utils.junkdrawer import random_name
-from irctest.patma import ANYSTR, Either, StrRe
+from irctest.patma import ANYDICT, ANYSTR, Either, StrRe
 from irctest.specifications import Capabilities
 
 REDACT_CAP = Capabilities.MESSAGE_REDACTION.value
@@ -174,15 +174,16 @@ class RedactTestCase(cases.BaseServerTestCase):
         bob_echo = self.getMessage(bob)
         alice_delivery = self.getMessage(alice)
 
-        self.assertMessageMatch(
-            bob_echo, command="PRIVMSG", params=[channel, "Hi Alice"]
-        )
-        self.assertMessageMatch(
-            alice_delivery, command="PRIVMSG", params=[channel, "Hi Alice"]
-        )
-
         bob_msgid = bob_echo.tags.get("msgid")
         assert bob_msgid, "Server did not send a msgid tag"
+
+        for msg in (bob_echo, alice_delivery):
+            self.assertMessageMatch(
+                msg,
+                command="PRIVMSG",
+                params=[channel, "Hi Alice"],
+                tags={"msgid": bob_msgid, **ANYDICT},
+            )
 
         # The IRC operator, who is not joined to the channel, can still
         # redact Bob's message. The REDACT is relayed to the channel's
