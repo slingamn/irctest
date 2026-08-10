@@ -194,24 +194,13 @@ class RedactTestCase(cases.BaseServerTestCase):
         alice_redact = self.getMessage(alice)
         bob_redact = self.getMessage(bob)
 
-        self.assertMessageMatch(
-            ircop_redact,
-            command="REDACT",
-            params=[channel, bob_msgid, "spam"],
-            prefix=StrRe(f"{ircop}!.*"),
-        )
-        self.assertMessageMatch(
-            alice_redact,
-            command="REDACT",
-            params=[channel, bob_msgid, "spam"],
-            prefix=StrRe(f"{ircop}!.*"),
-        )
-        self.assertMessageMatch(
-            bob_redact,
-            command="REDACT",
-            params=[channel, bob_msgid, "spam"],
-            prefix=StrRe(f"{ircop}!.*"),
-        )
+        for msg in (ircop_redact, alice_redact, bob_redact):
+            self.assertMessageMatch(
+                msg,
+                command="REDACT",
+                params=[channel, bob_msgid, "spam"],
+                prefix=StrRe(f"{ircop}!.*"),
+            )
 
     @cases.mark_capabilities(
         "message-tags", "echo-message", "batch", "labeled-response", REDACT_CAP
